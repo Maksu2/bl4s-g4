@@ -1,0 +1,19 @@
+# Run macro for batch mode
+# Initialize the run manager
+/run/initialize
+
+# --- Configuration ---
+# Set the thickness of the lead target
+# You can change this value (e.g. 5 cm, 10 mm)
+/BFS/geometry/leadThickness 2 cm
+
+# Set the energy of the electron beam
+/gun/energy 1 GeV
+
+# --- Execution ---
+# Print progress every 100 events
+/run/printProgress 100
+
+# Run the simulation with 1000 events (electrons)
+# Increase this for better statistics (e.g. 10000)
+/run/beamOn 1000
