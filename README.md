@@ -83,6 +83,3 @@ Total Electrons Detected: 5222
 
 Note that `Total Electrons Detected` is typically higher than `Total Events` because primary electrons generate multiple secondary particles (the shower) in the lead target.
 
----
-*Author: Maksu*
-*Powered by AI assistance.*
