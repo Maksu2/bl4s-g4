@@ -7,6 +7,7 @@
 #include "G4NistManager.hh"
 #include "G4PVPlacement.hh"
 #include "G4SystemOfUnits.hh"
+#include "G4UnitsTable.hh"
 #include "G4VisAttributes.hh"
 
 DetectorConstruction::DetectorConstruction()
@@ -43,6 +44,9 @@ G4VPhysicalVolume *DetectorConstruction::DefineVolumes() {
   G4Material *leadGlass = nist->FindOrBuildMaterial("G4_GLASS_LEAD");
 
   // --- World ---
+  G4cout << "--> Geometry: Building Lead Target with thickness: "
+         << G4BestUnit(fLeadThickness, "Length") << G4endl;
+
   G4double worldSize = 5.0 * m;
   auto *solidWorld =
       new G4Box("World", worldSize / 2, worldSize / 2, worldSize / 2);
