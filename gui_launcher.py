@@ -5,9 +5,10 @@ import re
 import threading
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QCheckBox, QTableWidget, 
-                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, QFrame)
+                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, QFrame,
+                             QStyleFactory)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont, QColor, QPalette
 
 class SimulationWorker(QThread):
     progress_signal = pyqtSignal(int, str) # row_index, status
@@ -89,96 +90,166 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Geant4 Simulation Manager")
-        self.setGeometry(100, 100, 700, 750)
+        self.setGeometry(100, 100, 750, 800)
         
-        # Style
+        # Apply Fusion Style (base for good custom styling)
+        QApplication.setStyle(QStyleFactory.create("Fusion"))
+        
+        # --- Dark Palette Setup ---
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.Window, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.WindowText, Qt.white)
+        dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+        dark_palette.setColor(QPalette.Text, Qt.white)
+        dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ButtonText, Qt.white)
+        dark_palette.setColor(QPalette.BrightText, Qt.red)
+        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        QApplication.setPalette(dark_palette)
+        
+        # --- Custom Stylesheet ---
         self.setStyleSheet("""
-            QMainWindow { background-color: #f5f5f7; }
-            QLabel { font-size: 13px; color: #333; }
+            QWidget { 
+                font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 14px;
+            }
+            QGroupBox {
+                border: 1px solid #555;
+                border-radius: 6px;
+                margin-top: 20px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px 0 3px;
+                color: #ccc;
+            }
             QLineEdit { 
-                padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white;
+                padding: 8px; 
+                border: 1px solid #555; 
+                border-radius: 4px; 
+                background: #333; 
+                color: #eee;
+                selection-background-color: #007AFF;
             }
+            QLineEdit:focus { border: 1px solid #007AFF; }
             QPushButton {
-                background-color: #007AFF; color: white; border-radius: 6px; padding: 8px 16px;
-                font-weight: bold; font-size: 13px;
+                background-color: #0d6efd; 
+                color: white; 
+                border-radius: 6px; 
+                padding: 10px 20px;
+                font-weight: bold;
+                border: none;
             }
-            QPushButton:hover { background-color: #0062cc; }
-            QPushButton:disabled { background-color: #ccc; }
+            QPushButton:hover { background-color: #0b5ed7; }
+            QPushButton:pressed { background-color: #0a58ca; }
+            QPushButton:disabled { background-color: #555; color: #888; }
+            
             QTableWidget {
-                border: 1px solid #ddd; background: white; gridline-color: #eee;
-                selection-background-color: #e3f2fd; selection-color: black;
+                border: none;
+                background-color: #2d2d2d;
+                gridline-color: #444;
             }
             QHeaderView::section {
-                background-color: #f0f0f0; padding: 4px; border: none; font-weight: bold;
+                background-color: #333;
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid #007AFF;
+                color: white;
+                font-weight: bold;
             }
+            QTableWidget::item { padding: 5px; }
+            
+            QTextEdit {
+                background-color: #1e1e1e;
+                border: 1px solid #444;
+                border-radius: 4px;
+                color: #ddd;
+                font-family: 'Courier New', Courier, monospace;
+            }
+            QLabel { color: #eee; }
         """)
 
         self.queue = []
         self.worker = None
-        
         self.setup_ui()
 
     def setup_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(25, 25, 25, 25)
         
-        # --- Inputs ---
-        input_group = QFrame()
-        input_group.setStyleSheet("background: white; border-radius: 10px; border: 1px solid #e0e0e0;")
-        input_layout = QVBoxLayout(input_group)
+        # --- Header ---
+        lbl_title = QLabel("Geant4 Simulation Manager")
+        lbl_title.setFont(QFont("Helvetica", 24, QFont.Bold))
+        lbl_title.setStyleSheet("color: white; margin-bottom: 10px;")
+        main_layout.addWidget(lbl_title)
         
-        title = QLabel("Simulation Parameters")
-        title.setFont(QFont("Helvetica", 14, QFont.Bold))
-        input_layout.addWidget(title)
+        # --- Input Section ---
+        input_frame = QFrame()
+        input_frame.setStyleSheet("background-color: #383838; border-radius: 8px;")
+        input_layout = QVBoxLayout(input_frame)
+        input_layout.setContentsMargins(20, 20, 20, 20)
         
-        # Form
-        grid = QVBoxLayout()
+        # Form Grid
+        grid_layout = QHBoxLayout()
         
-        # Row 1
-        h1 = QHBoxLayout()
-        h1.addWidget(QLabel("Electrons:"))
+        # Column 1
+        v1 = QVBoxLayout()
+        v1.addWidget(QLabel("Number of Electrons:"))
         self.entry_electrons = QLineEdit("1000")
-        h1.addWidget(self.entry_electrons)
-        grid.addLayout(h1)
+        v1.addWidget(self.entry_electrons)
+        grid_layout.addLayout(v1)
         
-        # Row 2
-        h2 = QHBoxLayout()
-        h2.addWidget(QLabel("Energy:"))
+        # Column 2
+        v2 = QVBoxLayout()
+        v2.addWidget(QLabel("Beam Energy:"))
         self.entry_energy = QLineEdit("1 GeV")
-        h2.addWidget(self.entry_energy)
-        grid.addLayout(h2)
+        v2.addWidget(self.entry_energy)
+        grid_layout.addLayout(v2)
         
-        # Row 3
-        h3 = QHBoxLayout()
-        h3.addWidget(QLabel("Thickness:"))
+        # Column 3
+        v3 = QVBoxLayout()
+        v3.addWidget(QLabel("Lead Thickness:"))
         self.entry_thickness = QLineEdit("1 cm")
-        h3.addWidget(self.entry_thickness)
-        grid.addLayout(h3)
+        v3.addWidget(self.entry_thickness)
+        grid_layout.addLayout(v3)
         
-        # SVG Checkbox
+        input_layout.addLayout(grid_layout)
+        
+        # Row 2 (Checkbox + Button)
+        h_bottom = QHBoxLayout()
         self.chk_svg = QCheckBox("Generate SVG Visualization")
         self.chk_svg.setChecked(True)
-        grid.addWidget(self.chk_svg)
+        self.chk_svg.setStyleSheet("QCheckBox { color: #ccc; spacing: 5px; } QCheckBox::indicator { width: 18px; height: 18px; }")
+        h_bottom.addWidget(self.chk_svg)
         
-        input_layout.addLayout(grid)
+        h_bottom.addStretch()
         
-        # Buttons
-        h_btn = QHBoxLayout()
-        btn_add = QPushButton("Add to Queue")
+        btn_add = QPushButton("+ Add to Queue")
+        btn_add.setStyleSheet("""
+            background-color: #198754; 
+            padding: 8px 24px;
+        """) # Green for add
         btn_add.clicked.connect(self.add_to_queue)
-        h_btn.addStretch()
-        h_btn.addWidget(btn_add)
-        input_layout.addLayout(h_btn)
+        h_bottom.addWidget(btn_add)
         
-        layout.addWidget(input_group)
+        input_layout.addLayout(h_bottom)
+        main_layout.addWidget(input_frame)
         
-        # --- Queue ---
-        lbl_queue = QLabel("Execution Queue")
-        lbl_queue.setFont(QFont("Helvetica", 12, QFont.Bold))
-        layout.addWidget(lbl_queue)
+        # --- Queue Section ---
+        queue_label = QLabel("Execution Queue")
+        queue_label.setFont(QFont("Helvetica", 14, QFont.Bold))
+        queue_label.setStyleSheet("margin-top: 10px;")
+        main_layout.addWidget(queue_label)
         
         self.table = QTableWidget()
         self.table.setColumnCount(5)
@@ -186,33 +257,33 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        layout.addWidget(self.table)
+        self.table.setAlternatingRowColors(True)
+        main_layout.addWidget(self.table)
         
-        # Action Buttons
-        action_layout = QHBoxLayout()
+        # --- Action Buttons ---
+        btn_layout = QHBoxLayout()
+        
         btn_clear = QPushButton("Clear Queue")
-        btn_clear.setStyleSheet("background-color: #FF3B30;")
+        btn_clear.setStyleSheet("background-color: #dc3545;") # Red
         btn_clear.clicked.connect(self.clear_queue)
+        btn_layout.addWidget(btn_clear)
+        
+        btn_layout.addStretch()
         
         self.btn_run = QPushButton("RUN QUEUE")
-        self.btn_run.setStyleSheet("background-color: #34C759; padding: 10px;")
+        self.btn_run.setFont(QFont("Helvetica", 12, QFont.Bold))
+        # Blue is default from global style
         self.btn_run.clicked.connect(self.run_queue)
+        btn_layout.addWidget(self.btn_run)
         
-        action_layout.addWidget(btn_clear)
-        action_layout.addStretch()
-        action_layout.addWidget(self.btn_run)
-        layout.addLayout(action_layout)
+        main_layout.addLayout(btn_layout)
         
-        # --- Log ---
-        lbl_log = QLabel("Log Output")
-        lbl_log.setFont(QFont("Helvetica", 11, QFont.Bold))
-        layout.addWidget(lbl_log)
-        
+        # --- Log Section ---
         self.text_log = QTextEdit()
         self.text_log.setReadOnly(True)
         self.text_log.setFixedHeight(120)
-        self.text_log.setStyleSheet("font-family: Courier; font-size: 11px; background: #2d2d2d; color: #eee;")
-        layout.addWidget(self.text_log)
+        self.text_log.setPlaceholderText("Execution log will appear here...")
+        main_layout.addWidget(self.text_log)
 
     def log(self, text):
         self.text_log.append(text)
@@ -246,6 +317,10 @@ class MainWindow(QMainWindow):
         self.table.setItem(row, 3, QTableWidgetItem(th))
         self.table.setItem(row, 4, QTableWidgetItem("Pending"))
         
+        # Center align items
+        for c in range(5):
+            self.table.item(row, c).setTextAlignment(Qt.AlignCenter)
+        
         self.log(f"Queue added: ID {task_id}")
 
     def clear_queue(self):
@@ -266,16 +341,18 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def update_status(self, row, status):
-        self.table.setItem(row, 4, QTableWidgetItem(status))
-        # Color coding
-        color = QColor(0, 0, 0) # Default black
-        if status == "Running...": color = QColor("#007AFF")
-        elif status == "Done": color = QColor("#34C759")
-        elif status == "Error" or status == "Failed": color = QColor("#FF3B30")
-        
         item = self.table.item(row, 4)
-        item.setForeground(color)
-        item.setFont(QFont("Helvetica", 10, QFont.Bold))
+        item.setText(status)
+        
+        # Color coding
+        if status == "Running...": 
+            item.setForeground(QColor("#0d6efd")) # Blue
+        elif status == "Done": 
+            item.setForeground(QColor("#198754")) # Green
+        elif status == "Error" or status == "Failed": 
+            item.setForeground(QColor("#dc3545")) # Red
+        else:
+            item.setForeground(QColor("white"))
 
     def on_finished(self):
         self.btn_run.setEnabled(True)
