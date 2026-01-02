@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-import sys
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+import argparse
 
 # Try importing seaborn for better aesthetics
 try:
@@ -13,7 +9,7 @@ except ImportError:
     sns_available = False
     print("Tip: Install seaborn for prettier plots (`pip install seaborn`)")
 
-def visualize_file(filename):
+def visualize_file(filename, energy=None, electrons=None, thickness=None):
     print(f"Processing {filename}...")
     
     # 1. Read CSV
@@ -26,12 +22,14 @@ def visualize_file(filename):
     # 2. Prepare Data Grid (21x21)
     grid_size = 21
     data_grid = np.zeros((grid_size, grid_size))
+    total_hits = 0
     
     # Coordinates -10 to 10 mapped to 0..20
     for index, row in df.iterrows():
         x = int(row['X'])
         y = int(row['Y'])
         hits = int(row['Hits'])
+        total_hits += hits
         
         # Row 0 is Y=10 (Top), Row 20 is Y=-10 (Bottom)
         row_idx = 10 - y
@@ -41,14 +39,12 @@ def visualize_file(filename):
             data_grid[row_idx][col_idx] = hits
 
     # 3. Plotting
-    # SVG allows infinite zoom.
-    plt.figure(figsize=(10, 9))
+    plt.figure(figsize=(10, 10)) # Slightly taller for text
     
     # Minimalist Theme
     if sns_available:
         sns.set_theme(style="white", font_scale=0.8)
         
-        # Mask zeros for a cleaner look
         mask = (data_grid == 0)
         
         ax = sns.heatmap(data_grid, 
@@ -64,16 +60,10 @@ def visualize_file(filename):
                          annot_kws={"size": 6, "color": "#333333", "weight": "light"} 
                          )
         
-        # Clean Aesthetics
         ax.set_facecolor('white')
-        
-        # Remove spines
         sns.despine(left=True, bottom=True)
         
-        # Ticks: Show selected ones to avoid clutter
-        # Show every 5th tick
         major_ticks = np.arange(0, grid_size, 5)
-        # Add the last one if not included
         if grid_size-1 not in major_ticks:
             major_ticks = np.append(major_ticks, grid_size-1)
 
@@ -82,25 +72,31 @@ def visualize_file(filename):
         
         ax.set_yticks(major_ticks + 0.5)
         ax.set_yticklabels([str(10-i) for i in major_ticks], rotation=0, fontsize=9)
-        
-        # Remove tick marks themselves, keep labels
         ax.tick_params(length=0)
         
-        # Minimalist titles
         plt.xlabel("X Position", fontsize=10, labelpad=15, color="#555555")
         plt.ylabel("Y Position", fontsize=10, labelpad=15, color="#555555")
         
-        # Title with file name in subtitle
-        plt.suptitle("Electro-Magnetic Shower Distribution", fontsize=16, weight='bold', color="#222222", y=0.96)
-        plt.title(f"Simulation Run: {filename}", fontsize=10, color="#666666", pad=10)
+        # Build Title/Subtitle
+        title_text = "Electro-Magnetic Shower Distribution"
+        subtitle_text = f"File: {filename}\nTotal Hits: {total_hits}"
+        
+        if energy or electrons or thickness:
+            details = []
+            if energy: details.append(f"Energy: {energy}")
+            if thickness: details.append(f"Thickness: {thickness}")
+            if electrons: details.append(f"Electrons: {electrons}")
+            subtitle_text += " | " + ", ".join(details)
+            
+        plt.suptitle(title_text, fontsize=16, weight='bold', color="#222222", y=0.95)
+        plt.title(subtitle_text, fontsize=10, color="#666666", pad=10)
         
     else:
-        # Minimalist Fallback
         plt.imshow(data_grid, cmap='OrRd', interpolation='nearest', norm=LogNorm())
         plt.colorbar(label='Hits (Log Scale)')
-        plt.title(f"Detector Hits: {filename}")
+        plt.title(f"Detector Hits: {filename}\nTotal: {total_hits}")
 
-    # 4. Save as SVG (Vector Graphic)
+    # 4. Save
     output_filename = filename.replace('.csv', '.svg')
     plt.savefig(output_filename, format='svg', bbox_inches='tight', transparent=False)
     plt.close()
@@ -108,8 +104,12 @@ def visualize_file(filename):
     print(f"✅ Visualization saved to: {output_filename}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 visualize_results.py <csv_file>")
-    else:
-        for f in sys.argv[1:]:
-            visualize_file(f)
+    parser = argparse.ArgumentParser(description='Visualize Geant4 Simulation Results')
+    parser.add_argument('file', help='Path to CSV file')
+    parser.add_argument('--energy', help='Beam Energy')
+    parser.add_argument('--electrons', help='Number of Electrons')
+    parser.add_argument('--thickness', help='Lead Thickness')
+    
+    args = parser.parse_args()
+    
+    visualize_file(args.file, args.energy, args.electrons, args.thickness)
