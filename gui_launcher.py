@@ -1,148 +1,33 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import sys
 import subprocess
-import threading
 import os
 import re
+import threading
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QLabel, QLineEdit, QPushButton, QCheckBox, QTableWidget, 
+                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, QFrame)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QFont, QColor
 
-class SimulationManager:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Geant4 Simulation Manager")
-        self.root.geometry("600x650")
-        
-        # Style
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("TFrame", background="#f0f0f0")
-        style.configure("TLabel", background="#f0f0f0", font=("Helvetica", 11))
-        style.configure("TButton", font=("Helvetica", 11))
-        style.configure("Header.TLabel", font=("Helvetica", 12, "bold"))
-        
-        self.root.configure(bg="#f0f0f0")
-        
-        # Variables
-        self.energy_var = tk.StringVar(value="1 GeV")
-        self.electrons_var = tk.StringVar(value="1000")
-        self.thickness_var = tk.StringVar(value="1 cm")
-        self.svg_var = tk.BooleanVar(value=True)
-        
-        self.queue = []
-        self.is_running = False
+class SimulationWorker(QThread):
+    progress_signal = pyqtSignal(int, str) # row_index, status
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal()
 
-        self.setup_ui()
-
-    def setup_ui(self):
-        # --- Input Section ---
-        input_frame = ttk.LabelFrame(self.root, text="Simulation Parameters", padding=15)
-        input_frame.pack(fill="x", padx=15, pady=10)
-        
-        # Grid layout for inputs
-        ttk.Label(input_frame, text="Electrons (count):").grid(row=0, column=0, sticky="w", pady=5)
-        ttk.Entry(input_frame, textvariable=self.electrons_var, width=15).grid(row=0, column=1, sticky="w", padx=10)
-        
-        ttk.Label(input_frame, text="Beam Energy:").grid(row=1, column=0, sticky="w", pady=5)
-        ttk.Entry(input_frame, textvariable=self.energy_var, width=15).grid(row=1, column=1, sticky="w", padx=10)
-        ttk.Label(input_frame, text="(e.g. 1 GeV, 100 MeV)").grid(row=1, column=2, sticky="w")
-        
-        ttk.Label(input_frame, text="Lead Thickness:").grid(row=2, column=0, sticky="w", pady=5)
-        ttk.Entry(input_frame, textvariable=self.thickness_var, width=15).grid(row=2, column=1, sticky="w", padx=10)
-        ttk.Label(input_frame, text="(e.g. 1 cm, 2.5 mm)").grid(row=2, column=2, sticky="w")
-        
-        ttk.Checkbutton(input_frame, text="Generate SVG Visualization", variable=self.svg_var).grid(row=3, column=0, columnspan=2, sticky="w", pady=10)
-        
-        ttk.Button(input_frame, text="Add to Queue", command=self.add_to_queue).grid(row=3, column=2, sticky="e")
-
-        # --- Queue Section ---
-        queue_frame = ttk.LabelFrame(self.root, text="Output Queue", padding=15)
-        queue_frame.pack(fill="both", expand=True, padx=15, pady=5)
-        
-        self.tree = ttk.Treeview(queue_frame, columns=("ID", "Energy", "Electrons", "Thickness", "Status"), show="headings", height=8)
-        self.tree.heading("ID", text="#")
-        self.tree.heading("Energy", text="Energy")
-        self.tree.heading("Electrons", text="Count")
-        self.tree.heading("Thickness", text="Thickness")
-        self.tree.heading("Status", text="Status")
-        
-        self.tree.column("ID", width=30)
-        self.tree.column("Status", width=100)
-        
-        self.tree.pack(fill="both", expand=True)
-
-        # Controls
-        btn_frame = ttk.Frame(self.root, padding=10)
-        btn_frame.pack(fill="x")
-        
-        self.run_btn = ttk.Button(btn_frame, text="RUN QUEUE", command=self.run_process, width=20)
-        self.run_btn.pack(side="right", padx=15)
-        
-        ttk.Button(btn_frame, text="Clear Queue", command=self.clear_queue).pack(side="left", padx=15)
-
-        # --- Log Section ---
-        log_frame = ttk.LabelFrame(self.root, text="Log", padding=10)
-        log_frame.pack(fill="x", padx=15, pady=10)
-        
-        self.log_text = tk.Text(log_frame, height=6, state="disabled", font=("Courier", 10))
-        self.log_text.pack(fill="x")
-
-    def log(self, message):
-        self.log_text.config(state="normal")
-        self.log_text.insert("end", message + "\n")
-        self.log_text.see("end")
-        self.log_text.config(state="disabled")
-
-    def add_to_queue(self):
-        e = self.electrons_var.get()
-        en = self.energy_var.get()
-        th = self.thickness_var.get()
-        svg = self.svg_var.get()
-        
-        if not e or not en or not th:
-            messagebox.showerror("Error", "All fields are required")
-            return
-
-        item_id = len(self.queue) + 1
-        self.queue.append({
-            "id": item_id,
-            "electrons": e,
-            "energy": en,
-            "thickness": th,
-            "svg": svg,
-            "status": "Pending"
-        })
-        
-        self.tree.insert("", "end", values=(item_id, en, e, th, "Pending"))
-        self.log(f"Added simulation #{item_id} to queue.")
-
-    def clear_queue(self):
-        self.queue = []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        self.log("Queue cleared.")
-
-    def run_process(self):
-        if self.is_running:
-            return
-        
-        if not self.queue:
-            messagebox.showinfo("Info", "Queue is empty")
-            return
-            
+    def __init__(self, queue):
+        super().__init__()
+        self.queue = queue
         self.is_running = True
-        self.run_btn.config(state="disabled")
-        
-        thread = threading.Thread(target=self.worker)
-        thread.start()
 
-    def worker(self):
-        self.log("--- Starting Batch Execution ---")
+    def run(self):
+        self.log_signal.emit("--- Starting Batch Execution ---")
         
         for i, task in enumerate(self.queue):
-            if task["status"] == "Done":
-                continue
-                
-            self.update_status(i, "Running...")
-            self.log(f"Processing #{task['id']} (E={task['energy']}, Th={task['thickness']})...")
+            if not self.is_running: break
+            if task["status"] == "Done": continue
+            
+            self.progress_signal.emit(i, "Running...")
+            self.log_signal.emit(f"Processing #{task['id']} (E={task['energy']}, Th={task['thickness']})...")
             
             # 1. Create temporary macro
             mac_content = f"""
@@ -158,20 +43,19 @@ class SimulationManager:
                 
             # 2. Run Simulation
             try:
-                # Capture output to find the CSV name
+                # Capture output
                 result = subprocess.run(["./build/GeantSim", mac_filename], capture_output=True, text=True)
                 
                 if result.returncode != 0:
-                    self.log(f"Error in #{task['id']}: {result.stderr}")
-                    self.update_status(i, "Error")
+                    self.log_signal.emit(f"Error in #{task['id']}: {result.stderr}")
+                    self.progress_signal.emit(i, "Error")
                     continue
                 
-                # Parse output for CSV filename
-                # Output format: Results written to 'results_1cm_3.csv'
+                # Parse output
                 match = re.search(r"Results written to '(.*\.csv)'", result.stdout)
                 if match:
                     csv_file = match.group(1)
-                    self.log(f"  -> Generated: {csv_file}")
+                    self.log_signal.emit(f"  -> Generated: {csv_file}")
                     
                     # 3. Visualization
                     if task["svg"]:
@@ -183,32 +67,222 @@ class SimulationManager:
                             "--thickness", task["thickness"]
                         ]
                         subprocess.run(cmd, check=True)
-                        self.log(f"  -> SVG created.")
+                        self.log_signal.emit(f"  -> SVG created.")
                     
-                    self.update_status(i, "Done")
+                    self.progress_signal.emit(i, "Done")
+                    task["status"] = "Done"
                 else:
-                    self.log("  -> Warning: Could not find output filename in logs.")
-                    self.update_status(i, "Unknown")
+                    self.log_signal.emit("  -> Warning: Could not find output filename.")
+                    self.progress_signal.emit(i, "Unknown")
                     
             except Exception as e:
-                self.log(f"Exception in #{task['id']}: {e}")
-                self.update_status(i, "Failed")
-                
-        self.log("--- All Tasks Completed ---")
-        self.is_running = False
-        self.root.after(0, lambda: self.run_btn.config(state="normal"))
+                self.log_signal.emit(f"Exception in #{task['id']}: {e}")
+                self.progress_signal.emit(i, "Failed")
         
-        # Cleanup temp file
         if os.path.exists("temp_queue_run.mac"):
             os.remove("temp_queue_run.mac")
+            
+        self.log_signal.emit("--- All Tasks Completed ---")
+        self.finished_signal.emit()
 
-    def update_status(self, index, status):
-        # Update Treeview safely
-        child_id = self.tree.get_children()[index]
-        self.tree.set(child_id, "Status", status)
-        self.queue[index]["status"] = status
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Geant4 Simulation Manager")
+        self.setGeometry(100, 100, 700, 750)
+        
+        # Style
+        self.setStyleSheet("""
+            QMainWindow { background-color: #f5f5f7; }
+            QLabel { font-size: 13px; color: #333; }
+            QLineEdit { 
+                padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: white;
+            }
+            QPushButton {
+                background-color: #007AFF; color: white; border-radius: 6px; padding: 8px 16px;
+                font-weight: bold; font-size: 13px;
+            }
+            QPushButton:hover { background-color: #0062cc; }
+            QPushButton:disabled { background-color: #ccc; }
+            QTableWidget {
+                border: 1px solid #ddd; background: white; gridline-color: #eee;
+                selection-background-color: #e3f2fd; selection-color: black;
+            }
+            QHeaderView::section {
+                background-color: #f0f0f0; padding: 4px; border: none; font-weight: bold;
+            }
+        """)
+
+        self.queue = []
+        self.worker = None
+        
+        self.setup_ui()
+
+    def setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # --- Inputs ---
+        input_group = QFrame()
+        input_group.setStyleSheet("background: white; border-radius: 10px; border: 1px solid #e0e0e0;")
+        input_layout = QVBoxLayout(input_group)
+        
+        title = QLabel("Simulation Parameters")
+        title.setFont(QFont("Helvetica", 14, QFont.Bold))
+        input_layout.addWidget(title)
+        
+        # Form
+        grid = QVBoxLayout()
+        
+        # Row 1
+        h1 = QHBoxLayout()
+        h1.addWidget(QLabel("Electrons:"))
+        self.entry_electrons = QLineEdit("1000")
+        h1.addWidget(self.entry_electrons)
+        grid.addLayout(h1)
+        
+        # Row 2
+        h2 = QHBoxLayout()
+        h2.addWidget(QLabel("Energy:"))
+        self.entry_energy = QLineEdit("1 GeV")
+        h2.addWidget(self.entry_energy)
+        grid.addLayout(h2)
+        
+        # Row 3
+        h3 = QHBoxLayout()
+        h3.addWidget(QLabel("Thickness:"))
+        self.entry_thickness = QLineEdit("1 cm")
+        h3.addWidget(self.entry_thickness)
+        grid.addLayout(h3)
+        
+        # SVG Checkbox
+        self.chk_svg = QCheckBox("Generate SVG Visualization")
+        self.chk_svg.setChecked(True)
+        grid.addWidget(self.chk_svg)
+        
+        input_layout.addLayout(grid)
+        
+        # Buttons
+        h_btn = QHBoxLayout()
+        btn_add = QPushButton("Add to Queue")
+        btn_add.clicked.connect(self.add_to_queue)
+        h_btn.addStretch()
+        h_btn.addWidget(btn_add)
+        input_layout.addLayout(h_btn)
+        
+        layout.addWidget(input_group)
+        
+        # --- Queue ---
+        lbl_queue = QLabel("Execution Queue")
+        lbl_queue.setFont(QFont("Helvetica", 12, QFont.Bold))
+        layout.addWidget(lbl_queue)
+        
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["ID", "Energy", "Electrons", "Thickness", "Status"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        layout.addWidget(self.table)
+        
+        # Action Buttons
+        action_layout = QHBoxLayout()
+        btn_clear = QPushButton("Clear Queue")
+        btn_clear.setStyleSheet("background-color: #FF3B30;")
+        btn_clear.clicked.connect(self.clear_queue)
+        
+        self.btn_run = QPushButton("RUN QUEUE")
+        self.btn_run.setStyleSheet("background-color: #34C759; padding: 10px;")
+        self.btn_run.clicked.connect(self.run_queue)
+        
+        action_layout.addWidget(btn_clear)
+        action_layout.addStretch()
+        action_layout.addWidget(self.btn_run)
+        layout.addLayout(action_layout)
+        
+        # --- Log ---
+        lbl_log = QLabel("Log Output")
+        lbl_log.setFont(QFont("Helvetica", 11, QFont.Bold))
+        layout.addWidget(lbl_log)
+        
+        self.text_log = QTextEdit()
+        self.text_log.setReadOnly(True)
+        self.text_log.setFixedHeight(120)
+        self.text_log.setStyleSheet("font-family: Courier; font-size: 11px; background: #2d2d2d; color: #eee;")
+        layout.addWidget(self.text_log)
+
+    def log(self, text):
+        self.text_log.append(text)
+        self.text_log.verticalScrollBar().setValue(self.text_log.verticalScrollBar().maximum())
+
+    def add_to_queue(self):
+        e = self.entry_electrons.text()
+        en = self.entry_energy.text()
+        th = self.entry_thickness.text()
+        
+        if not e or not en or not th:
+            QMessageBox.warning(self, "Missing Info", "Please fill all fields")
+            return
+            
+        task_id = len(self.queue) + 1
+        task = {
+            "id": task_id,
+            "electrons": e,
+            "energy": en,
+            "thickness": th,
+            "svg": self.chk_svg.isChecked(),
+            "status": "Pending"
+        }
+        self.queue.append(task)
+        
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        self.table.setItem(row, 0, QTableWidgetItem(str(task_id)))
+        self.table.setItem(row, 1, QTableWidgetItem(en))
+        self.table.setItem(row, 2, QTableWidgetItem(e))
+        self.table.setItem(row, 3, QTableWidgetItem(th))
+        self.table.setItem(row, 4, QTableWidgetItem("Pending"))
+        
+        self.log(f"Queue added: ID {task_id}")
+
+    def clear_queue(self):
+        self.queue = []
+        self.table.setRowCount(0)
+        self.log("Queue cleared.")
+
+    def run_queue(self):
+        if not self.queue:
+            QMessageBox.information(self, "Empty", "Queue is empty!")
+            return
+            
+        self.btn_run.setEnabled(False)
+        self.worker = SimulationWorker(self.queue)
+        self.worker.progress_signal.connect(self.update_status)
+        self.worker.log_signal.connect(self.log)
+        self.worker.finished_signal.connect(self.on_finished)
+        self.worker.start()
+
+    def update_status(self, row, status):
+        self.table.setItem(row, 4, QTableWidgetItem(status))
+        # Color coding
+        color = QColor(0, 0, 0) # Default black
+        if status == "Running...": color = QColor("#007AFF")
+        elif status == "Done": color = QColor("#34C759")
+        elif status == "Error" or status == "Failed": color = QColor("#FF3B30")
+        
+        item = self.table.item(row, 4)
+        item.setForeground(color)
+        item.setFont(QFont("Helvetica", 10, QFont.Bold))
+
+    def on_finished(self):
+        self.btn_run.setEnabled(True)
+        QMessageBox.information(self, "Finished", "Batch processing execution completed.")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = SimulationManager(root)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
