@@ -1,8 +1,8 @@
 #ifndef DetectorConstruction_h
 #define DetectorConstruction_h 1
 
-#include "globals.hh"
 #include "G4VUserDetectorConstruction.hh"
+#include "globals.hh"
 
 class G4VPhysicalVolume;
 class G4GenericMessenger;
@@ -15,6 +15,8 @@ public:
   virtual G4VPhysicalVolume *Construct();
 
   virtual void ConstructSDandField();
+
+  G4double GetLeadThickness() const { return fLeadThickness; }
 
 private:
   void DefineMaterials();

@@ -65,19 +65,25 @@ Otwórz plik `run.mac` w dowolnym edytorze tekstu. Możesz tam zmienić:
 *   `/run/beamOn 1000` -> Liczba wystrzelonych elektronów.
 *   `/gun/energy 1 GeV` -> Energia wiązki. Spróbuj `100 MeV` i zobacz czy kaskada będzie mniejsza!
 
-## 📊 Interpretacja Wyników (`results.txt`)
+### 4. Wizualizacja Wyników 🎨
 
-Po zakończeniu programu zajrzyj do pliku `results.txt`.
+Symulacja zapisuje teraz wyniki w formacie CSV (np. `results_2cm_1.csv`).
+Aby stworzyć z nich piękny, czytelny wykres (heatmapę), użyj dołączonego skryptu Python:
 
-Przykładowy fragment:
-```text
-Detector (-1, 0) | 360 hits
-Detector (0, 0)  | 1117 hits
-Total Electrons Detected: 5222
+```bash
+python3 visualize_results.py results_2cm_1.csv
 ```
 
-*   **(0, 0)** to środek siatki detektorów (tam celuje wiązka).
-*   Liczby w nawiasach to współrzędne $(X, Y)$ detektora (w "kratkach").
+To polecenie stworzy plik `results_2cm_1.png` z kolorową mapą trafień i wartościami liczbowymi.
+Wymaga zainstalowanych bibliotek: `pandas`, `matplotlib`, `seaborn` (opcjonalnie, dla ładniejszego wyglądu).
+```bash
+pip install pandas matplotlib seaborn
+```
+
+## 📊 Interpretacja Wyników (`results_*.csv`)
+
+Pliki wynikowe to tabele CSV: `X, Y, Hits`.
+*   Oś X, Y: Współrzędne detektora (od -10 do 10). (0,0) to środek.
 *   **Total Electrons Detected > Total Events**: To dowód na działanie kaskady! Wystrzeliliśmy 1000 elektronów, a detektory "zobaczyły" ich 5222. Oznacza to, że każdy elektron wybił średnio ponad 5 cząstek wtórnych.
 
 ---

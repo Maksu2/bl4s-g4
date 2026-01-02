@@ -65,20 +65,26 @@ Open `run.mac` in any text editor. You can change:
 *   `/run/beamOn 1000` -> Number of fired electrons.
 *   `/gun/energy 1 GeV` -> Beam energy. Try `100 MeV` and see if the shower gets smaller!
 
-## 📊 Interpreting Results (`results.txt`)
+### 4. Results Visualization 🎨
 
-After the run, check `results.txt`.
+The simulation now outputs results in CSV format (e.g., `results_2cm_1.csv`).
+To create a beautiful, readable heatmap, use the included Python script:
 
-Example snippet:
-```text
-Detector (-1, 0) | 360 hits
-Detector (0, 0)  | 1117 hits
-Total Electrons Detected: 5222
+```bash
+python3 visualize_results.py results_2cm_1.csv
 ```
 
-*   **(0, 0)** is the center of the detector grid (where the beam aims).
-*   Numbers in parentheses are $(X, Y)$ coordinates of the detector.
-*   **Total Electrons Detected > Total Events**: This is proof of the cascade! We fired 1000 electrons, but the detectors "saw" 5222. This means every primary electron produced, on average, more than 5 secondary particles.
+This command produces a `results_2cm_1.png` file with a color-coded hit map and numerical values.
+Requires installed libraries: `pandas`, `matplotlib`, `seaborn` (optional, for better aesthetics).
+```bash
+pip install pandas matplotlib seaborn
+```
+
+## 📊 Interpreting Results (`results_*.csv`)
+
+Result files are CSV tables: `X, Y, Hits`.
+*   X, Y Axes: Detector coordinates (from -10 to 10). (0,0) is the center.
+*   **Total Electrons Detected > Total Events**: This is proof of the cascade!
 
 ---
 

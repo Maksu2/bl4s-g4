@@ -30,6 +30,12 @@ void RunAction::BeginOfRunAction(const G4Run *) {
   G4RunManager::GetRunManager()->SetRandomNumberStore(false);
 }
 
+// Include at top
+#include "DetectorConstruction.hh"
+#include "G4UnitsTable.hh"
+#include <algorithm> // for remove matches
+// ...
+
 void RunAction::EndOfRunAction(const G4Run *run) {
   G4int nofEvents = run->GetNumberOfEvent();
   if (nofEvents == 0)
@@ -45,47 +51,51 @@ void RunAction::EndOfRunAction(const G4Run *run) {
            << G4endl;
     G4cout << " Run ended! Number of events: " << nofEvents << G4endl;
 
-    std::ofstream outFile("results.txt");
-    outFile << "--- Simulation Results ---" << std::endl;
-    outFile << "Total Events: " << nofEvents << std::endl;
-    outFile << "Format: X Y | Hits (Center is 0 0)" << std::endl;
-    outFile << "-------------------" << std::endl;
+    // --- Dynamic Filename Generation ---
+    const DetectorConstruction *detector =
+        static_cast<const DetectorConstruction *>(
+            G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+    G4double thickness = detector->GetLeadThickness();
+
+    // Format thickness string (e.g. "2 cm")
+    G4String thickStr = G4BestUnit(thickness, "Length");
+    // Remove space to make it "2cm"
+    thickStr.erase(std::remove(thickStr.begin(), thickStr.end(), ' '),
+                   thickStr.end());
+
+    std::string fileName;
+    int counter = 1;
+    do {
+      fileName = "results_" + thickStr + "_" + std::to_string(counter) + ".csv";
+      counter++;
+    } while (std::ifstream(fileName.c_str()).good()); // Check if exists
+
+    std::ofstream outFile(fileName);
+    // CSV Header
+    outFile << "X,Y,Hits" << std::endl;
 
     G4int totalHits = 0;
-
-    // Geometry params matched with DetectorConstruction
     int nCols = 21;
-    int nRows = 21;
 
     for (auto const &[copyNo, acc] : fAccumulableHits) {
       G4int hits = acc->GetValue();
       if (hits > 0) {
-        // Convert copyNo to X, Y
         // copyNo = j * nCols + i
         int i = copyNo % nCols;
         int j = copyNo / nCols;
-
-        // Convert to centered coordinates
-        // Center is at 10, 10 (since 21/2 = 10)
+        // Center is at 10, 10
         int x = i - 10;
         int y = j - 10;
 
-        outFile << "     " << x << " " << y << "      |  " << hits << std::endl;
-        // Optional: print to console only significant hits to avoid spam
-        if (hits > 10) {
-          G4cout << " Detector (" << x << ", " << y << "): " << hits << " hits"
-                 << G4endl;
-        }
+        outFile << x << "," << y << "," << hits << std::endl;
         totalHits += hits;
       }
     }
 
-    outFile << "-------------------" << std::endl;
-    outFile << "Total Electrons Detected: " << totalHits << std::endl;
-    G4cout << " Total Electrons Detected: " << totalHits << G4endl;
-
     outFile.close();
-    G4cout << " Results written to 'results.txt'" << G4endl;
+
+    G4cout << " Total Electrons Detected: " << totalHits << G4endl;
+    G4cout << " Results written to '" << fileName << "'" << G4endl;
     G4cout << "------------------------------------------------------------"
            << G4endl;
   }

@@ -3,7 +3,7 @@
 # --- 1. GEOMETRY CONFIGURATION ---
 # IMPORTANT: Geometry parameters must be set BEFORE initialization!
 # Set the thickness of the lead target (e.g. 2 cm, 5 cm, 10 mm)
-/BFS/geometry/leadThickness 1 um
+/BFS/geometry/leadThickness 1 cm
 
 
 # --- 2. INITIALIZATION ---
