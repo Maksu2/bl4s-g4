@@ -1,88 +1,83 @@
-# Symulacja Geant4 - Beamline for Schools (BL4S) ⚛️
+# Symulacja Geant4 na konkurs CERN Beamline for Schools (BL4S) ⚛️
 
-## O Projekcie
-Ten projekt jest symulacją Monte Carlo stworzoną przy użyciu toolkitu **Geant4** na potrzeby konkursu **CERN Beamline for Schools (BL4S)**. Celem symulacji jest wymodelowanie zachowania wiązki elektronów przechodzącej przez ołowianą tarczę i rejestracja powstałej kaskady elektromagnetycznej za pomocą macierzy detektorów.
+## 📖 Wstęp: O co chodzi w tym projekcie?
 
-Symulacja pozwala na badanie rozkładu przestrzennego cząstek po przejściu przez materiał o dużej liczbie atomowej (Z), co jest kluczowe dla zrozumienia zjawisk takich jak promieniowanie hamowania (bremsstrahlung) i produkcja par.
+Ten projekt to zaawansowana symulacja komputerowa stworzona w oparciu o toolkit **Geant4** – to samo narzędzie, którego używają fizycy w CERN do projektowania wielkich detektorów, takich jak ATLAS czy CMS.
 
-## Fizyka i Geometria 📐
-Symulacja modeluje następujący scenariusz eksperymentalny w środowisku próżniowym:
+Naszym celem jest zbadanie **kaskady elektromagnetycznej** (ang. *electromagnetic shower*). Chcemy zobaczyć, co się dzieje, gdy elektrony o bardzo dużej energii uderzają w gęsty materiał (ołów). Czy przelatują na wylot? Czy znikają? A może dzieje się coś bardziej spektakularnego?
 
-1.  **Wiązka (Beam)**:
-    *   Cząstki: Elektrony ($e^-$).
-    *   Energia: 1 GeV.
-    *   Kierunek: Oś Z.
+Symulacja pozwala nam "zajrzeć" w głąb materii i zweryfikować nasze hipotezy bez konieczności budowania kosztownego eksperymentu w rzeczywistości (jeszcze!).
+
+## 🧠 Fizyka: Jak to działa?
+
+Głównym zjawiskiem, które obserwujemy, jest kaskada elektromagnetyczna. Składa się ona z dwóch naprzemiennych procesów:
+
+1.  **Promieniowanie Hamowania (Bremsstrahlung)**:
+    Gdy rozpędzony elektron ($e^-$) przelatuje blisko jądra atomu ołowiu, jest gwałtownie hamowany przez jego pole elektryczne. Zgodnie z prawami elektrodynamiki, hamowany ładunek musi oddać energię – emituje ją w postaci fotonu gamma ($\gamma$) o wysokiej energii.
+
+2.  **Produkcja Par (Pair Production)**:
+    Foton gamma powstały w poprzednim kroku, mknąc przez materię, może w pobliżu jądra atomowego zamienić się w parę cząstek: elektron ($e^-$) i pozyton ($e^+$).
+
+**Efekt lawinowy**:
+Jeden elektron wchodzący w ołowianą tarczę emituje foton. Ten foton zamienia się w dwa nowe elektrony (jeden ujemny, jeden dodatni). Te dwa znowu hamują, emitując kolejne fotony...
+Z **jednej** cząstki na wejściu robi się **cała chmura** cząstek wtórnych na wyjściu! To właśnie dlatego nasze detektory zliczają więcej trafień niż wystrzeliliśmy elektronów.
+
+## 📐 Geometria Eksperymentu
+
+Wszystko dzieje się w wirtualnej komorze próżniowej ($5 \times 5 \times 5$ m), aby powietrze nie zakłócało pomiaru.
+
+1.  **Działo elektronowe**:
+    *   Źródło wiązki elektronów o energii **1 GeV** (1 miliard elektronowoltów).
+    *   Wiązka jest skolimowana (leci prosto wzdłuż osi Z).
 
 2.  **Tarcza (Target)**:
-    *   Materiał: Ołów ($Pb$).
-    *   Grubość: Konfigurowalna (domyślnie 2 cm).
-    *   Cel: Wywołanie kaskady elektromagnetycznej. Elektrony o wysokiej energii oddziałując z jądrami ołowiu emitują fotony (bremsstrahlung), które następnie konwertują w pary elektron-pozyton.
+    *   Blok **ołowiu (Pb)**.
+    *   Grubość można zmieniać w pliku konfiguracyjnym (domyślnie 2 cm).
+    *   To tutaj zachodzi "magia" tworzenia nowych cząstek.
 
-3.  **Detekcja (Calorimeter Array)**:
-    *   Układ: Matryca 21x21 detektorów (łącznie 441 kryształów).
-    *   Wymiary pojedynczego detektora: $10 \times 10 \times 10$ cm.
-    *   Materiał: Szkło ołowiowe (Lead Glass).
-    *   Pozycja: Umieszczone 1 metr za tarczą.
-    *   Funkcja: Rejestracja liczby cząstek naładowanych przechodzących przez dany segment (licznik uderzeń).
+3.  **Kalorymetr (Detektory)**:
+    *   Matryca **21 x 21** kryształów ($441$ sztuk).
+    *   Każdy kryształ to sześcian $10 \times 10 \times 10$ cm wykonany ze **szkła ołowiowego**.
+    *   Umieszczone 1 metr za tarczą.
+    *   Zadanie: Zliczyć każdą naładowaną cząstkę, która do niego wpadnie.
 
-## Wymagania
-*   **Geant4** (wersja 11.2 lub nowsza).
-*   **CMake** (do kompilacji).
-*   Kompilator C++ obsługujący standard C++17.
-*   System operacyjny: macOS/Linux (testowano na macOS Apple Silicon).
+## 🛠️ Instrukcja Obsługi
 
-## Instrukcja Uruchomienia 🚀
+### Wymagania
+Musisz mieć zainstalowany Geant4 oraz CMake.
 
 ### 1. Kompilacja
-Projekt zawiera skrypt pomocniczy do kompilacji, który automatycznie wykrywa liczbę rdzeni procesora:
-
+Aby zamienić kod C++ w działający program, uruchom w terminalu:
 ```bash
 ./compile_sim.sh
 ```
+Stworzy to plik `./build/GeantSim`.
 
-W wyniku kompilacji powstanie folder `build` z plikiem wykonywalnym `GeantSim`.
-
-### 2. Uruchomienie Symulacji
-Symulację najlepiej uruchamiać w trybie wsadowym (batch mode) przy użyciu makra:
-
+### 2. Uruchamianie
+Symulację sterujemy plikiem `run.mac`. Uruchom komendę:
 ```bash
 ./build/GeantSim run.mac
 ```
 
-### 3. Konfiguracja (run.mac)
-W pliku `run.mac` możesz dowolnie zmieniać parametry bez ponownej kompilacji:
+### 3. Konfiguracja (bez rekompilacji!)
+Otwórz plik `run.mac` w dowolnym edytorze tekstu. Możesz tam zmienić:
+*   `/BFS/geometry/leadThickness 2 cm` -> Grubość tarczy. Ustaw `0 cm` (lub `1 um`), żeby zobaczyć co się dzieje bez ołowiu (brak kaskady!).
+*   `/run/beamOn 1000` -> Liczba wystrzelonych elektronów.
+*   `/gun/energy 1 GeV` -> Energia wiązki. Spróbuj `100 MeV` i zobacz czy kaskada będzie mniejsza!
 
-*   **Zmiana grubości tarczy**:
-    ```bash
-    /BFS/geometry/leadThickness 5 cm  # Ustawienie 5 cm ołowiu
-    ```
-*   **Liczba zdarzeń**:
-    ```bash
-    /run/beamOn 10000  # Symulacja 10 tysięcy elektronów
-    ```
-*   **Energia wiązki**:
-    ```bash
-    /gun/energy 500 MeV
-    ```
+## 📊 Interpretacja Wyników (`results.txt`)
 
-## Analiza Wyników 📊
-Po zakończeniu symulacji generowany jest plik `results.txt`. Jest to czytelny plik tekstowy zawierający mapę uderzeń.
+Po zakończeniu programu zajrzyj do pliku `results.txt`.
 
-**Format pliku:**
+Przykładowy fragment:
 ```text
-Total Events: 1000
-Format: X Y | Hits (Center is 0 0)
--------------------
-     0 0      |  1117   <-- Centralny detektor (na osi wiązki)
-     -1 0     |  360    <-- Detektor obok środka
-     ...
+Detector (-1, 0) | 360 hits
+Detector (0, 0)  | 1117 hits
 Total Electrons Detected: 5222
 ```
-*   **X, Y**: Współrzędne detektora w siatce (0,0 to środek matrycy).
-*   **Hits**: Liczba zliczonych cząstek w danym detektorze.
 
-Zauważ, że `Total Electrons Detected` jest często większa niż `Total Events`, ponieważ pierwotne elektrony generują w ołowiu wiele cząstek wtórnych (kaskada), które trafiają w detektory.
+*   **(0, 0)** to środek siatki detektorów (tam celuje wiązka).
+*   Liczby w nawiasach to współrzędne $(X, Y)$ detektora (w "kratkach").
+*   **Total Electrons Detected > Total Events**: To dowód na działanie kaskady! Wystrzeliliśmy 1000 elektronów, a detektory "zobaczyły" ich 5222. Oznacza to, że każdy elektron wybił średnio ponad 5 cząstek wtórnych.
 
 ---
-*Autor: Maksu*
-*Stworzono przy pomocy asystenta AI.*

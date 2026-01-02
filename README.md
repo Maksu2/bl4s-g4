@@ -1,85 +1,84 @@
-# Geant4 Simulation - Beamline for Schools (BL4S) ⚛️
+# Geant4 Simulation for CERN Beamline for Schools (BL4S) ⚛️
 
-## About the Project
-This project is a Monte Carlo simulation developed using the **Geant4** toolkit for the **CERN Beamline for Schools (BL4S)** competition. The goal is to simulate an electron beam interacting with a lead target and to detect the resulting electromagnetic shower using a segmented calorimeter array.
+## 📖 Introduction: What is this project?
 
-The simulation enables the study of the spatial distribution of particles after passing through high-Z material, which is essential for understanding phenomena such as bremsstrahlung and pair production.
+This project is an advanced computer simulation built using the **Geant4** toolkit – the same software used by physicists at CERN to design massive detectors like ATLAS or CMS.
 
-## Physics & Geometry 📐
-The simulation models the following experimental setup in a vacuum environment:
+Our goal is to study the **electromagnetic shower** (cascade). We want to observe what happens when ultra-high-energy electrons strike a dense material like lead. Do they pass right through? Do they disappear? Or does something more spectacular occur?
 
-1.  **The Beam**:
-    *   Particles: Electrons ($e^-$).
-    *   Energy: 1 GeV (configurable).
-    *   Direction: Along the Z-axis.
+This simulation allows us to "see" inside matter and verify our hypotheses without building an expensive real-world experiment (yet!).
 
-2.  **The Target**:
-    *   Material: Lead ($Pb$).
-    *   Thickness: User-configurable (default 2 cm).
-    *   Purpose: To induce an electromagnetic shower. High-energy electrons interacting with lead nuclei emit photons (bremsstrahlung), which subsequently convert into electron-positron pairs.
+## 🧠 The Physics: How does it work?
 
-3.  **Detectors (Calorimeter Array)**:
-    *   Layout: 21x21 matrix (441 detectors total).
-    *   Single Cell Size: $10 \times 10 \times 10$ cm.
-    *   Material: Lead Glass.
-    *   Position: located 1 meter downstream from the target.
-    *   Function: Counts the number of charged particles traversing each segment.
+The main phenomenon we observe is the electromagnetic cascade. It consists of two alternating processes:
 
-## Requirements
-*   **Geant4** (v11.2 or later).
-*   **CMake**.
-*   C++17 compliant compiler.
-*   OS: macOS (Apple Silicon tested) or Linux.
+1.  **Bremsstrahlung (Braking Radiation)**:
+    When a high-speed electron ($e^-$) passes close to a lead nucleus, it is rapidly decelerated by the electric field. According to electrodynamics, a decelerating charge must emit energy – it releases it as a high-energy gamma photon ($\gamma$).
 
-## How to Run 🚀
+2.  **Pair Production**:
+    The gamma photon produced in the previous step, traveling through matter, interacts with a nucleus and converts into a pair of particles: an electron ($e^-$) and a positron ($e^+$).
+
+**The Avalanche Effect**:
+A single electron entering the lead target emits a photon. This photon converts into two new particles. These two decelerate again, emitting more photons...
+From **one** input particle, we get a **cloud** of secondary particles at the output! This is why our detectors count more hits than the number of electrons we fired.
+
+## 📐 Experiment Geometry
+
+Everything takes place in a virtual vacuum chamber ($5 \times 5 \times 5$ m) to prevent air from interfering with the measurement.
+
+1.  **Electron Gun**:
+    *   Source of a **1 GeV** (1 billion electronvolts) electron beam.
+    *   The beam is collimated (fires straight along the Z-axis).
+
+2.  **Target**:
+    *   A block of **Lead (Pb)**.
+    *   Thickness is configurable (default 2 cm).
+    *   This is where the "magic" of particle creation happens.
+
+3.  **Calorimeter (Detectors)**:
+    *   A **21 x 21** matrix of crystals (441 total).
+    *   Each crystal is a $10 \times 10 \times 10$ cm cube made of **Lead Glass**.
+    *   Placed 1 meter behind the target.
+    *   Task: To count every charged particle that enters it.
+
+## 🛠️ User Guide
+
+### Requirements
+You need to have Geant4 and CMake installed.
 
 ### 1. Compilation
-A helper script is provided to compile the project, automatically detecting the number of CPU cores:
-
+To turn the C++ code into a running program, execute:
 ```bash
 ./compile_sim.sh
 ```
+This creates the `./build/GeantSim` executable.
 
-This will create a `build` directory containing the `GeantSim` executable.
-
-### 2. Running the Simulation
-Run the simulation in batch mode using the provided macro:
-
+### 2. Running
+Control the simulation using the `run.mac` file. Run:
 ```bash
 ./build/GeantSim run.mac
 ```
 
-### 3. Configuration (run.mac)
-You can adjust simulation parameters in the `run.mac` file without recompiling:
+### 3. Configuration (No Recompilation Needed!)
+Open `run.mac` in any text editor. You can change:
+*   `/BFS/geometry/leadThickness 2 cm` -> Target thickness. Set to `0 cm` (or `1 um`) to see what happens without lead (no cascade!).
+*   `/run/beamOn 1000` -> Number of fired electrons.
+*   `/gun/energy 1 GeV` -> Beam energy. Try `100 MeV` and see if the shower gets smaller!
 
-*   **Change Target Thickness**:
-    ```bash
-    /BFS/geometry/leadThickness 5 cm
-    ```
-*   **Number of Events**:
-    ```bash
-    /run/beamOn 10000
-    ```
-*   **Beam Energy**:
-    ```bash
-    /gun/energy 500 MeV
-    ```
+## 📊 Interpreting Results (`results.txt`)
 
-## Results Analysis 📊
-Upon completion, the simulation generates a `results.txt` file containing the hit map.
+After the run, check `results.txt`.
 
-**File Format:**
+Example snippet:
 ```text
-Total Events: 1000
-Format: X Y | Hits (Center is 0 0)
--------------------
-     0 0      |  1117   <-- Central detector (on beam axis)
-     -1 0     |  360    <-- Adjacent detector
-     ...
+Detector (-1, 0) | 360 hits
+Detector (0, 0)  | 1117 hits
 Total Electrons Detected: 5222
 ```
-*   **X, Y**: Detector coordinates in the grid (0,0 is the center).
-*   **Hits**: Number of particles counted in that specific detector.
 
-Note that `Total Electrons Detected` is typically higher than `Total Events` because primary electrons generate multiple secondary particles (the shower) in the lead target.
+*   **(0, 0)** is the center of the detector grid (where the beam aims).
+*   Numbers in parentheses are $(X, Y)$ coordinates of the detector.
+*   **Total Electrons Detected > Total Events**: This is proof of the cascade! We fired 1000 electrons, but the detectors "saw" 5222. This means every primary electron produced, on average, more than 5 secondary particles.
+
+---
 
