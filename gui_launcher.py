@@ -6,9 +6,9 @@ import threading
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QCheckBox, QTableWidget, 
                              QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, QFrame,
-                             QStyleFactory)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QColor, QPalette
+                             QStyleFactory, QSpacerItem, QSizePolicy)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt5.QtGui import QFont, QColor, QPalette, QIcon
 
 class SimulationWorker(QThread):
     progress_signal = pyqtSignal(int, str) 
@@ -21,14 +21,14 @@ class SimulationWorker(QThread):
         self.is_running = True
 
     def run(self):
-        self.log_signal.emit(">>> BATCH EXECUTION STARTED")
+        self.log_signal.emit("Batch execution started.")
         
         for i, task in enumerate(self.queue):
             if not self.is_running: break
-            if task["status"] == "DONE": continue
+            if task["status"] == "Completed": continue
             
-            self.progress_signal.emit(i, "RUNNING")
-            self.log_signal.emit(f"PROCESSING TASK #{task['id']} [E={task['energy']} | Th={task['thickness']}]")
+            self.progress_signal.emit(i, "Running...")
+            self.log_signal.emit(f"Processing Task #{task['id']} (E={task['energy']}, Th={task['thickness']})")
             
             # 1. Create temporary macro
             mac_content = f"""
@@ -47,15 +47,15 @@ class SimulationWorker(QThread):
                 result = subprocess.run(["./build/GeantSim", mac_filename], capture_output=True, text=True)
                 
                 if result.returncode != 0:
-                    self.log_signal.emit(f"[ERROR] Task #{task['id']}: {result.stderr}")
-                    self.progress_signal.emit(i, "ERROR")
+                    self.log_signal.emit(f"Error in task #{task['id']}: {result.stderr}")
+                    self.progress_signal.emit(i, "Error")
                     continue
                 
                 # Parse output
                 match = re.search(r"Results written to '(.*\.csv)'", result.stdout)
                 if match:
                     csv_file = match.group(1)
-                    self.log_signal.emit(f"   -> Output: {csv_file}")
+                    self.log_signal.emit(f"  -> Generated: {csv_file}")
                     
                     if task["svg"]:
                         cmd = [
@@ -66,183 +66,181 @@ class SimulationWorker(QThread):
                             "--thickness", task["thickness"]
                         ]
                         subprocess.run(cmd, check=True)
-                        self.log_signal.emit(f"   -> Visualization generated.")
+                        self.log_signal.emit(f"  -> Visualization created.")
                     
-                    self.progress_signal.emit(i, "DONE")
-                    task["status"] = "DONE"
+                    self.progress_signal.emit(i, "Completed")
+                    task["status"] = "Completed"
                 else:
-                    self.log_signal.emit("   -> Warning: Output filename not detected.")
-                    self.progress_signal.emit(i, "UNKNOWN")
+                    self.log_signal.emit("  -> Warning: Output filename not detected.")
+                    self.progress_signal.emit(i, "Unknown")
                     
             except Exception as e:
-                self.log_signal.emit(f"[EXCEPTION] Task #{task['id']}: {e}")
-                self.progress_signal.emit(i, "FAILED")
+                self.log_signal.emit(f"Exception in task #{task['id']}: {e}")
+                self.progress_signal.emit(i, "Failed")
         
         if os.path.exists("temp_queue_run.mac"):
             os.remove("temp_queue_run.mac")
             
-        self.log_signal.emit(">>> BATCH EXECUTION FINISHED")
+        self.log_signal.emit("Batch processing finished.")
         self.finished_signal.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Geant4 Simulation Manager")
-        self.setGeometry(100, 100, 900, 700)
+        self.setWindowTitle("Simulation Manager")
+        self.setGeometry(100, 100, 850, 700)
         
-        # --- Deep Graphite Technical Theme ---
-        # Palette:
-        # Background: #1E1E1E (Deep Graphite)
-        # Panels: #252526 (Lighter Anthracite)
-        # Accent: #007ACC (Technical Blue) or #4CC9F0 (Cyan). Let's use a calm Technical Blue: #3ca9e2
-        # Text: #CCCCCC (Readable Grey)
-        # Inputs: #333333
+        # --- "Quiet Modern" Theme ---
+        # Background: #181818 (Unified, dark, calm)
+        # Accent: #E0E0E0 (Subtle white/grey for interactions) or a very desaturated blue
+        # Text: #B0B0B0 (Soft grey, not harsh white)
         
         self.setStyleSheet("""
             QWidget {
-                background-color: #1E1E1E;
-                color: #CCCCCC;
-                font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+                background-color: #181818;
+                color: #B0B0B0;
+                font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
                 font-size: 13px;
+                font-weight: 300;
             }
             
             /* HEADERS */
             QLabel#Header {
-                color: #FFFFFF;
-                font-size: 18px;
-                font-weight: 600;
+                color: #E0E0E0;
+                font-size: 16px;
+                font-weight: 400;
                 letter-spacing: 0.5px;
-                margin-bottom: 5px;
             }
             
-            QLabel#Label {
-                color: #AAAAAA;
-                font-weight: 500;
+            QLabel#SubHeader {
+                color: #707070;
+                font-size: 12px;
+                font-weight: 400;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 10px;
             }
-
-            /* PANELS */
-            QFrame#Panel {
-                background-color: #252526;
-                border: none;
-                border-radius: 4px;
-            }
-
-            /* INPUTS */
+            
+            /* INPUT FIELDS - Minimalist */
             QLineEdit {
-                background-color: #333333;
-                border: 1px solid #3E3E3E;
-                border-radius: 2px;
-                padding: 8px;
-                color: #FFFFFF;
-                font-family: 'Consolas', 'Courier New', monospace; 
+                background-color: transparent;
+                border: none;
+                border-bottom: 1px solid #333333;
+                color: #E0E0E0;
+                padding: 5px 0px;
+                font-size: 14px;
             }
             QLineEdit:focus {
-                border: 1px solid #3ca9e2;
-                background-color: #383838;
+                border-bottom: 1px solid #606060;
+                color: #FFFFFF;
+            }
+            QLabel#FieldLabel {
+                color: #666666;
+                font-size: 12px;
             }
 
-            /* BUTTONS - Flat, No Shadows */
+            /* BUTTONS - Subtle, Ghost-like or Soft Fill */
             QPushButton {
-                background-color: #333333;
-                color: #FFFFFF;
+                background-color: #222222;
+                color: #B0B0B0;
                 border: none;
-                border-radius: 2px;
-                padding: 8px 16px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
+                border-radius: 4px;
+                padding: 10px 20px;
+                font-size: 13px;
             }
             QPushButton:hover {
-                background-color: #3E3E3E;
-                color: #3ca9e2; /* Text glow on hover */
+                background-color: #2A2A2A;
+                color: #FFFFFF;
             }
             QPushButton:pressed {
-                background-color: #2D2D2D;
+                background-color: #1F1F1F;
             }
             
-            QPushButton#AccentButton {
-                background-color: #3ca9e2;
-                color: #1E1E1E;
+            QPushButton#PrimaryButton {
+                background-color: #E0E0E0; /* Soft White/Grey */
+                color: #121212;
+                font-weight: 500;
             }
-            QPushButton#AccentButton:hover {
-                background-color: #4db8f0;
+            QPushButton#PrimaryButton:hover {
+                background-color: #FFFFFF;
             }
             
-            QPushButton#DangerButton {
-                color: #bd4848;
+            QPushButton#TextButton {
                 background-color: transparent;
-                border: 1px solid #bd4848;
+                color: #666666;
+                text-align: right;
             }
-            QPushButton#DangerButton:hover {
-                background-color: #bd4848;
-                color: white;
+            QPushButton#TextButton:hover {
+                color: #AA4444; /* Subtle danger hint only on hover */
             }
 
-            /* TABLE */
+            /* TABLE - Clean, airy, no borders */
             QTableWidget {
-                background-color: #252526;
+                background-color: transparent;
                 border: none;
-                gridline-color: #333333;
-                font-family: 'Consolas', 'Courier New', monospace;
+                gridline-color: transparent;
             }
             QHeaderView::section {
-                background-color: #2D2D2D;
-                color: #CCCCCC;
+                background-color: transparent;
+                color: #555555;
                 border: none;
-                padding: 8px;
-                font-weight: 600;
-                text-transform: uppercase;
+                padding: 5px;
                 font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                text-align: left;
             }
             QTableWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #2D2D2D;
+                padding: 10px 5px;
+                border-bottom: 1px solid #222222; /* Very subtle separator */
+                color: #AAAAAA;
             }
             QTableWidget::item:selected {
-                background-color: #3ca9e2;
-                color: #1E1E1E;
+                background-color: #1F1F1F;
+                color: #FFFFFF;
             }
 
             /* CHECKBOX */
             QCheckBox {
+                color: #666666;
                 spacing: 8px;
-                color: #AAAAAA;
             }
             QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                background: #333333;
-                border: 1px solid #3E3E3E;
+                width: 14px;
+                height: 14px;
+                border: 1px solid #444444;
                 border-radius: 2px;
+                background: transparent;
             }
             QCheckBox::indicator:checked {
-                background-color: #3ca9e2;
-                border: 1px solid #3ca9e2;
+                background-color: #606060;
+                border-color: #606060;
             }
 
-            /* SCROLLBAR */
-            QScrollBar:vertical {
+            /* LOG AREA */
+            QTextEdit {
+                background-color: transparent;
                 border: none;
-                background: #252526;
-                width: 10px;
-                margin: 0px;
+                border-top: 1px solid #222222;
+                color: #666666;
+                font-family: 'Consolas', monospace;
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            
+            /* SCROLLBAR - Minimal */
+             QScrollBar:vertical {
+                border: none;
+                background: transparent;
+                width: 8px;
             }
             QScrollBar::handle:vertical {
-                background: #444444;
+                background: #333333;
+                border-radius: 4px;
                 min-height: 20px;
-                border-radius: 2px;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
-            }
-            
-            /* LOG */
-            QTextEdit {
-                background-color: #1A1A1A;
-                border: 1px solid #333333;
-                color: #888888;
-                font-family: 'Consolas', monospace;
-                font-size: 12px;
             }
         """)
 
@@ -254,127 +252,136 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         
-        # Main Layout (Grid-based approach)
+        # Main Layout: Use plenty of whitespace
         main_layout = QVBoxLayout(central)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setSpacing(40)
+        main_layout.setContentsMargins(60, 60, 60, 60)
 
-        # 1. HEADER
-        header_layout = QHBoxLayout()
-        title = QLabel("GEANT4 SIMULATION MANAGER")
+        # 1. TOP SECTION: Header & Config
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(60)
+        
+        # Left: Title
+        header_vbox = QVBoxLayout()
+        title = QLabel("Simulation\nManager")
         title.setObjectName("Header")
-        header_layout.addWidget(title)
+        header_vbox.addWidget(title)
         
-        status_badge = QLabel("v2.0 • READY")
-        status_badge.setStyleSheet("color: #3ca9e2; font-family: 'Consolas'; font-size: 11px;")
-        header_layout.addStretch()
-        header_layout.addWidget(status_badge)
-        
-        main_layout.addLayout(header_layout)
+        # Spacer
+        header_vbox.addStretch()
+        top_layout.addLayout(header_vbox, 1) # Ratio 1
 
-        # 2. CONFIG PANEL
-        config_panel = QFrame()
-        config_panel.setObjectName("Panel")
-        config_layout = QHBoxLayout(config_panel)
-        config_layout.setContentsMargins(20, 20, 20, 20)
-        config_layout.setSpacing(30) # Airy spacing
-
-        # Col 1: Electrons
-        v1 = QVBoxLayout()
-        l1 = QLabel("PARTICLE COUNT")
-        l1.setObjectName("Label")
-        self.entry_electrons = QLineEdit("1000")
-        v1.addWidget(l1)
-        v1.addWidget(self.entry_electrons)
-        config_layout.addLayout(v1)
+        # Right: Config Grid (Inputs)
+        config_grid = QWidget()
+        config_layout = QVBoxLayout(config_grid)
+        config_layout.setContentsMargins(0,0,0,0)
+        config_layout.setSpacing(25)
         
-        # Col 2: Energy
-        v2 = QVBoxLayout()
-        l2 = QLabel("BEAM ENERGY")
-        l2.setObjectName("Label")
-        self.entry_energy = QLineEdit("1 GeV")
-        v2.addWidget(l2)
-        v2.addWidget(self.entry_energy)
-        config_layout.addLayout(v2)
+        # Input Rows
+        row1 = QHBoxLayout() 
+        self.entry_electrons = self.create_input("Particles", "1000")
+        self.entry_energy = self.create_input("Energy", "1 GeV")
+        row1.addWidget(self.entry_electrons)
+        row1.addSpacing(30)
+        row1.addWidget(self.entry_energy)
         
-        # Col 3: Thickness
-        v3 = QVBoxLayout()
-        l3 = QLabel("TARGET THICKNESS")
-        l3.setObjectName("Label")
-        self.entry_thickness = QLineEdit("1 cm")
-        v3.addWidget(l3)
-        v3.addWidget(self.entry_thickness)
-        config_layout.addLayout(v3)
+        row2 = QHBoxLayout()
+        self.entry_thickness = self.create_input("Target Thickness", "1 cm")
         
-        # Col 4: Action
-        v4 = QVBoxLayout()
-        self.chk_svg = QCheckBox("GENERATE SVG")
-        self.chk_svg.setChecked(True)
-        
-        btn_add = QPushButton("ADD TO QUEUE")
-        btn_add.setObjectName("AccentButton")
+        # Add Button (Aligned with input)
+        btn_add = QPushButton("Add to Queue")
+        btn_add.setCursor(Qt.PointingHandCursor)
         btn_add.clicked.connect(self.add_to_queue)
         
-        v4.addWidget(self.chk_svg)
-        v4.addWidget(btn_add)
-        v4.setAlignment(Qt.AlignBottom)
-        config_layout.addLayout(v4)
+        row2.addWidget(self.entry_thickness)
+        row2.addSpacing(30)
+        row2.addWidget(btn_add)
         
-        main_layout.addWidget(config_panel)
+        config_layout.addLayout(row1)
+        config_layout.addLayout(row2)
+        
+        # SVG Checkbox
+        self.chk_svg = QCheckBox("Generate Visualization (SVG)")
+        self.chk_svg.setChecked(True)
+        config_layout.addWidget(self.chk_svg)
 
-        # 3. QUEUE LIST
-        queue_header = QHBoxLayout()
-        q_title = QLabel("EXECUTION QUEUE")
-        q_title.setObjectName("Header")
-        q_title.setStyleSheet("font-size: 14px; margin-top: 10px;")
+        top_layout.addWidget(config_grid, 3) # Ratio 3 (Wider)
         
-        btn_clear = QPushButton("CLEAR ALL")
-        btn_clear.setObjectName("DangerButton")
-        btn_clear.setFixedWidth(100)
+        main_layout.addLayout(top_layout)
+
+        # 2. MIDDLE SECTION: Queue List
+        middle_layout = QVBoxLayout()
+        middle_layout.setSpacing(15)
+        
+        # Header Row
+        queue_header_layout = QHBoxLayout()
+        lbl_queue = QLabel("Queue")
+        lbl_queue.setObjectName("SubHeader")
+        queue_header_layout.addWidget(lbl_queue)
+        
+        btn_clear = QPushButton("Clear")
+        btn_clear.setObjectName("TextButton")
+        btn_clear.setCursor(Qt.PointingHandCursor)
         btn_clear.clicked.connect(self.clear_queue)
+        queue_header_layout.addWidget(btn_clear)
         
-        queue_header.addWidget(q_title)
-        queue_header.addStretch()
-        queue_header.addWidget(btn_clear)
-        main_layout.addLayout(queue_header)
-
+        middle_layout.addLayout(queue_header_layout)
+        
+        # Table
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "ENERGY", "PARTICLES", "THICKNESS", "STATUS"])
+        self.table.setHorizontalHeaderLabels(["ID", "Energy", "Count", "Thickness", "Status"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setShowGrid(False) # Cleaner look
+        self.table.setShowGrid(False)
+        self.table.setFrameShape(QFrame.NoFrame)
         self.table.setFocusPolicy(Qt.NoFocus)
-        main_layout.addWidget(self.table)
+        self.table.setMinimumHeight(200)
+        middle_layout.addWidget(self.table)
+        
+        main_layout.addLayout(middle_layout)
 
-        # 4. FOOTER / LOGS
-        footer_layout = QHBoxLayout()
+        # 3. BOTTOM SECTION: Actions & Log
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(40)
         
-        # Run Button (Large)
-        self.btn_run = QPushButton("INITIALIZE & RUN BATCH")
-        self.btn_run.setObjectName("AccentButton")
-        self.btn_run.setFixedHeight(40)
-        self.btn_run.clicked.connect(self.run_queue)
-        
-        footer_layout.addWidget(self.btn_run)
-        main_layout.addLayout(footer_layout)
-        
+        # Log (Left side, subtle)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setFixedHeight(100)
-        self.log_text.setPlaceholderText("> System Ready. Awaiting commands...")
-        self.log_text.setFrameShape(QFrame.NoFrame)
-        main_layout.addWidget(self.log_text)
+        self.log_text.setPlaceholderText("System status...")
+        bottom_layout.addWidget(self.log_text, 3)
+        
+        # Run Button (Right side, prominent)
+        self.btn_run = QPushButton("Run Batch")
+        self.btn_run.setObjectName("PrimaryButton")
+        self.btn_run.setCursor(Qt.PointingHandCursor)
+        self.btn_run.setMinimumHeight(50)
+        self.btn_run.clicked.connect(self.run_queue)
+        bottom_layout.addWidget(self.btn_run, 1)
+        
+        main_layout.addLayout(bottom_layout)
 
-    def log(self, text):
-        self.log_text.append(text)
-        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
+    def create_input(self, label_text, default_val):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0,0,0,0)
+        layout.setSpacing(5)
+        
+        lbl = QLabel(label_text)
+        lbl.setObjectName("FieldLabel")
+        layout.addWidget(lbl)
+        
+        entry = QLineEdit(default_val)
+        layout.addWidget(entry)
+        
+        widget.entry = entry # Attach ref
+        return widget 
 
     def add_to_queue(self):
-        e = self.entry_electrons.text()
-        en = self.entry_energy.text()
-        th = self.entry_thickness.text()
+        e = self.entry_electrons.entry.text()
+        en = self.entry_energy.entry.text()
+        th = self.entry_thickness.entry.text()
         
         if not e or not en or not th:
             return
@@ -386,17 +393,17 @@ class MainWindow(QMainWindow):
             "energy": en,
             "thickness": th,
             "svg": self.chk_svg.isChecked(),
-            "status": "PENDING"
+            "status": "Pending"
         }
         self.queue.append(task)
         
+        # Add to table
         row = self.table.rowCount()
         self.table.insertRow(row)
         
-        # Helper to create clean items
-        def make_item(text, align=Qt.AlignCenter):
+        def make_item(text):
             it = QTableWidgetItem(str(text))
-            it.setTextAlignment(align)
+            it.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             return it
             
         self.table.setItem(row, 0, make_item(f"{task_id:03d}"))
@@ -404,25 +411,23 @@ class MainWindow(QMainWindow):
         self.table.setItem(row, 2, make_item(e))
         self.table.setItem(row, 3, make_item(th))
         
-        status_item = make_item("PENDING")
-        status_item.setForeground(QColor("#777777"))
+        status_item = make_item("Pending")
+        status_item.setForeground(QColor("#666666"))
         self.table.setItem(row, 4, status_item)
         
-        self.log(f"> Task #{task_id:03d} added to queue.")
+        self.log(f"Queued task #{task_id}")
 
     def clear_queue(self):
         self.queue = []
         self.table.setRowCount(0)
-        self.log("> Queue cleared.")
+        self.log("Queue cleared")
 
     def run_queue(self):
         if not self.queue:
-            QMessageBox.information(self, "Queue Empty", "Please add tasks to the queue first.")
             return
             
         self.btn_run.setEnabled(False)
-        self.btn_run.setText("PROCESSING...")
-        self.btn_run.setStyleSheet("background-color: #444; color: #888;")
+        self.btn_run.setText("Processing...")
         
         self.worker = SimulationWorker(self.queue)
         self.worker.progress_signal.connect(self.update_status)
@@ -434,20 +439,23 @@ class MainWindow(QMainWindow):
         item = self.table.item(row, 4)
         item.setText(status)
         
-        if status == "RUNNING": 
-            item.setForeground(QColor("#3ca9e2"))
-        elif status == "DONE": 
-            item.setForeground(QColor("#58D68D")) # Tech Green
-        elif status == "ERROR" or status == "FAILED": 
-            item.setForeground(QColor("#bd4848")) # Muted Red
+        if status == "Running...": 
+            item.setForeground(QColor("#FFFFFF"))
+        elif status == "Completed": 
+            item.setForeground(QColor("#A0A0A0")) 
+        elif status == "Error" or status == "Failed": 
+            item.setForeground(QColor("#CC6666")) 
         else:
-            item.setForeground(QColor("#777777"))
+            item.setForeground(QColor("#666666"))
 
     def on_finished(self):
         self.btn_run.setEnabled(True)
-        self.btn_run.setText("INITIALIZE & RUN BATCH")
-        self.btn_run.setStyleSheet("") # Reset to style sheet default
-        QMessageBox.information(self, "Sequence Complete", "All tasks in the queue have been processed.")
+        self.btn_run.setText("Run Batch")
+        self.log("Batch run complete.")
+
+    def log(self, text):
+        self.log_text.append(text)
+        self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
