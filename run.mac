@@ -1,0 +1,23 @@
+# Run macro for batch mode
+
+# --- 1. GEOMETRY CONFIGURATION ---
+# IMPORTANT: Geometry parameters must be set BEFORE initialization!
+# Set the thickness of the lead target (e.g. 2 cm, 5 cm, 10 mm)
+/BFS/geometry/leadThickness 1 cm
+
+
+# --- 2. INITIALIZATION ---
+/run/initialize
+
+
+# --- 3. BEAM CONFIGURATION ---
+# Set the energy of the electron beam (e.g. 1 GeV, 500 MeV)
+/gun/energy 1 GeV
+
+
+# --- 4. EXECUTION ---
+/run/printProgress 100
+
+# Run the simulation with 1000 events (electrons)
+# Increase this for better statistics (e.g. 10000)
+/run/beamOn 1000

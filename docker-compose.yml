@@ -1,0 +1,75 @@
+# Geant4 Simulation Dashboard - Docker Compose
+# For local development and testing
+
+version: "3.9"
+
+services:
+  # ========================
+  # FastAPI Backend
+  # ========================
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: geant4-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:4173,http://web:4173,https://sim.maksu.online
+    volumes:
+      - ./results:/app/results
+      - ./api/simulations.db:/app/api/simulations.db
+    networks:
+      - geant-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================
+  # SvelteKit Frontend
+  # ========================
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: geant4-web
+    ports:
+      - "4173:4173"
+    environment:
+      - PUBLIC_API_URL=http://api:8000
+      - ORIGIN=https://sim.maksu.online
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - geant-network
+    restart: unless-stopped
+
+  # ========================
+  # Cloudflare Tunnel
+  # ========================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: geant4-tunnel
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - web
+      - api
+    networks:
+      - geant-network
+    restart: unless-stopped
+
+networks:
+  geant-network:
+    driver: bridge
+    name: geant-network
+
+volumes:
+  results:
+    driver: local

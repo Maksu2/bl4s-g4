@@ -1,0 +1,34 @@
+name: "Geant4 Simulation Dashboard"
+description: "Team-based web dashboard for Geant4 electromagnetic cascade simulations with Cloudflare Tunnel access"
+version: "1.0.0"
+slug: "geant4-sim"
+url: "https://github.com/maksu/symulacjaa"
+arch:
+  - aarch64
+init: false
+homeassistant_api: false
+hassio_api: false
+host_network: false
+ingress: false
+panel_icon: mdi:atom
+startup: application
+boot: auto
+ports:
+  8000/tcp: null
+  4173/tcp: null
+ports_description:
+  8000/tcp: "API Backend (internal)"
+  4173/tcp: "Web Frontend (internal)"
+options:
+  tunnel_token: ""
+  domain_web: "sim.maksu.online"
+  domain_api: "api.maksu.online"
+  log_level: "info"
+schema:
+  tunnel_token: str
+  domain_web: str?
+  domain_api: str?
+  log_level: list(debug|info|warning|error)?
+map:
+  - share:rw
+  - addon_config:rw

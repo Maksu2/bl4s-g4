@@ -1,0 +1,15 @@
+configuration:
+  tunnel_token:
+    name: Cloudflare Tunnel Token
+    description: >-
+      Token from Cloudflare Zero Trust Dashboard.
+      Go to Zero Trust → Networks → Tunnels → Create tunnel → Copy token.
+  domain_web:
+    name: Web Domain
+    description: Domain for the web dashboard (e.g., sim.maksu.online)
+  domain_api:
+    name: API Domain
+    description: Domain for the API backend (e.g., api.maksu.online)
+  log_level:
+    name: Log Level
+    description: Logging verbosity level

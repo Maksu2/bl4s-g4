@@ -1,0 +1,37 @@
+FROM debian:bookworm
+
+# Install basic deps
+RUN apt-get update && apt-get install -y \
+    curl python3 python3-pip python3-venv nodejs npm procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Simulate bashio (simple wrapper)
+RUN echo '#!/bin/bash\n\
+    if [[ "$1" == "log.info" ]]; then echo "[INFO] ${*:2}"; fi\n\
+    if [[ "$1" == "log.warning" ]]; then echo "[WARN] ${*:2}"; fi\n\
+    if [[ "$1" == "log.error" ]]; then echo "[ERROR] ${*:2}"; fi\n\
+    if [[ "$1" == "config" ]]; then echo ""; fi\n\
+    ' > /usr/bin/bashio && chmod +x /usr/bin/bashio
+
+# Install cloudflared (AMD64 for Mac)
+RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+    -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
+
+WORKDIR /app
+
+# Copy run script
+COPY sim_addon/run.sh /run.sh
+RUN chmod +x /run.sh
+
+# Mock API and Web folders to prevent run.sh from failing immediately
+RUN mkdir -p /app/web /data/results /data/db
+RUN echo "print('Mock API started')" > /app/mock_api.py
+RUN echo "console.log('Mock Web started')" > /app/web/build.js
+
+# Modify run.sh for test environment:
+# 1. Replace API start with dummy process
+# 2. Replace Web start with dummy process
+RUN sed -i 's|python -m uvicorn api.main:app.*|python3 -c "import time; print(\\\"Mock API running\\\"); time.sleep(60)" \&|g' /run.sh
+RUN sed -i 's|node build.*|node -e "console.log(\\\"Mock Web running\\\"); setTimeout(() => {}, 60000)" \&|g' /run.sh
+
+CMD ["/run.sh"]

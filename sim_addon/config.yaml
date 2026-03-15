@@ -1,0 +1,21 @@
+name: "Geant4 Simulation Dashboard"
+description: "Panel zespołowy do symulacji Geant4 z dostępem przez Cloudflare Tunnel"
+version: "1.0.0"
+slug: "geant4_sim"
+url: "https://github.com/maksu/symulacjaa"
+arch:
+  - aarch64
+init: false
+homeassistant_api: false
+hassio_api: true
+host_network: false
+ingress: false
+panel_icon: mdi:atom
+startup: application
+boot: auto
+options:
+  tunnel_token: ""
+schema:
+  tunnel_token: str
+map:
+  - share:rw

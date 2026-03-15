@@ -1,0 +1,50 @@
+# SvelteKit Frontend Dockerfile
+# Multi-stage build for optimal image size
+
+# ============ Build Stage ============
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY web/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY web/ ./
+
+# Build for production
+RUN npm run build
+
+# ============ Production Stage ============
+FROM node:20-alpine AS production
+
+LABEL maintainer="Maksu"
+LABEL description="Geant4 Simulation Dashboard - Web Frontend"
+
+WORKDIR /app
+
+# Install production dependencies only
+COPY web/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy built application
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package.json ./
+
+# Expose frontend port
+EXPOSE 4173
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:4173/ || exit 1
+
+# Environment variables
+ENV HOST=0.0.0.0
+ENV PORT=4173
+ENV ORIGIN=https://sim.maksu.online
+
+# Run production server
+CMD ["node", "build"]

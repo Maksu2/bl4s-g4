@@ -1,0 +1,6 @@
+configuration:
+  tunnel_token:
+    name: Cloudflare Tunnel Token
+    description: >-
+      Token z Cloudflare Zero Trust. 
+      Wejdź na one.dash.cloudflare.com → Networks → Tunnels → Create tunnel → Skopiuj token.
